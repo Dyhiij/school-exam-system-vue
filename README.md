@@ -28,15 +28,15 @@
 
 | 登录 | 在线考试（防切屏监控） |
 |---|---|
-| ![login](docs/screenshots/login.png) | ![exam](docs/screenshots/exam-room.png) |
+| ![login](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/login.png) | ![exam](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/exam-room.png) |
 
 | 防作弊拦截（重复进入 403） | 我的成绩 |
 |---|---|
-| ![anti-cheat](docs/screenshots/anti-cheat.png) | ![my-scores](docs/screenshots/my-scores.png) |
+| ![anti-cheat](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/anti-cheat.png) | ![my-scores](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/my-scores.png) |
 
 | 人工阅卷（给分操作） | 管理端成绩查询 |
 |---|---|
-| ![grading](docs/screenshots/grading.png) | ![score-query](docs/screenshots/score-query.png) |
+| ![grading](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/grading.png) | ![score-query](https://cdn.jsdelivr.net/gh/Dyhiij/school-exam-system-vue@main/docs/screenshots/score-query.png) |
 
 ---
 
