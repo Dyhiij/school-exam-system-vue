@@ -1,17 +1,126 @@
 # 🏫 学校管理系统（企业级在线考试系统）
 
-> 课程实训项目 · Spring Boot 3 + Vue3 全栈 · 题库管理 / 在线考试 / 防作弊监控 / 智能批阅 / 成绩分析
+> **课程实训项目 · Spring Boot 3 + Vue3 全栈**
+> 题库管理 / 在线考试 / 防作弊监控 / 智能批阅 / 成绩可视化分析
 
-一套面向企业内部培训考核与学校教学测评的在线考试系统，支持**系统管理员、考试管理员、阅卷人、考生**四类角色，覆盖出题、组卷（人工/策略随机）、在线考试、切屏防作弊、客观题自动判分 + 主观题流水线人工阅卷、成绩可视化分析全流程。
+一套面向**企业内部培训考核**与**学校教学测评**的在线考试系统，支持 **系统管理员 · 考试管理员 · 阅卷人 · 考生** 四类角色，覆盖「出题 → 组卷 → 在线考试 → 防作弊 → 判分阅卷 → 成绩分析」全流程。客观题交卷即自动判分，主观题支持盲改与流水线协同阅卷；随机策略组卷为每位考生生成难度一致但题目不同的试卷，从源头杜绝抄袭。
 
-- **后端**：Spring Boot + Spring Security + MyBatis-Plus + MySQL 8 + Redis
-- **前端**：Vue3 + Vite + Element Plus + Pinia + Vue Router
-- **详细运行指南**：见下文（本仓库不含 `runtime/` 便携运行环境，需自备 JDK 17+ / Maven / MySQL / Node.js，或下载完整便携版交付包）
-- 演示账号：`admin / 123456`（管理员）、`student / 123456`（考生）
+| 后端 | Spring Boot 3 · Spring Security · MyBatis-Plus · MySQL 8 · Redis |
+|---|---|
+| 前端 | Vue3 · Vite · Element Plus · Pinia · Vue Router |
+| 部署 | Docker Compose（另附便携式免安装交付包） |
+| 演示账号 | `admin / 123456`（系统管理员）· `student / 123456`（考生，阅卷人角色可经管理端分配） |
 
 ---
 
-# 📋 详细运行指南
+## ✨ 功能亮点
+
+- **📚 全题型题库**：单选 / 多选 / 判断 / 填空（多空顺序）/ 简答 / 材料题，支持 Excel、Word 模板批量导入
+- **🧩 双模式组卷**：固定试卷人工挑题；随机试卷按知识点/题型/难度配比，每位考生一套差异化试卷
+- **🛡️ 全链路防作弊**：切屏计数警告（超限自动交卷）、禁复制粘贴、禁右键、防多标签双开、IP 异常登录检测、多端登录互踢、交卷后不可重复进入（后端 403 拦截）
+- **✍️ 自动 + 人工双轨阅卷**：客观题交卷瞬间自动赋分；主观题支持盲改模式（隐藏考生信息）与流水线模式（每人只改一题）
+- **💾 答题快照容灾**：答题进度定时写入本地缓存，断网 / 浏览器崩溃后重进不丢一题
+- **📊 多维成绩分析**：及格率走势、分数段分布、高频错题榜单、知识点掌握度分析，支持成绩单 Excel 导出
+
+---
+
+## 🖼️ 界面预览
+
+| 登录 | 在线考试（防切屏监控） |
+|---|---|
+| ![login](docs/screenshots/login.png) | ![exam](docs/screenshots/exam-room.png) |
+
+| 防作弊拦截（重复进入 403） | 我的成绩 |
+|---|---|
+| ![anti-cheat](docs/screenshots/anti-cheat.png) | ![my-scores](docs/screenshots/my-scores.png) |
+
+| 人工阅卷（给分操作） | 管理端成绩查询 |
+|---|---|
+| ![grading](docs/screenshots/grading.png) | ![score-query](docs/screenshots/score-query.png) |
+
+---
+
+## 🧱 技术架构
+
+```text
+┌─────────────────────────────────────────────────────────┐
+│  Vue3 + Element Plus 前端（Vite 开发服务器 / Nginx 静态） │
+│  请求拦截器：登录态校验 · 接口降级（后端离线→本地演示）    │
+└──────────────────────┬──────────────────────────────────┘
+                       │ axios（Vite 代理 → 127.0.0.1:8080）
+┌──────────────────────▼──────────────────────────────────┐
+│        Spring Boot 3 后端（Spring Security + JWT）        │
+│  Controller → Service → MyBatis-Plus Mapper → MySQL 8    │
+│  Redis：登录会话 / 在线状态 / 答题快照                    │
+└──────────────────────────────────────────────────────────┘
+```
+
+- **权限模型**：Spring Security + JWT 无状态认证，四角色 RBAC 菜单权限 + 数据权限隔离
+- **判分引擎**：交卷事务内按 `exam_paper_question` 关联表遍历该卷题目 → 客观题自动判分写 `exam_score`，主观题答案落 `exam_answer` 待人工阅卷
+- **数据表**：用户 / 角色 / 题库 / 试卷 / 试卷题目关联 / 考试批次 / 答卷 / 成绩 / 系统配置 / 操作日志（`database/init.sql`）
+
+---
+
+## 🧪 测试与质量（v3 修复版，2026-09-09）
+
+本版为**缺陷修复后的交付版**，基于软件测试课程流程对原模板实测，定位并修复 8 项缺陷，全部回归通过（测试过程详见 [测试报告](docs/在线考试系统_测试报告.md) 与 [缺陷修复说明](docs/学校管理系统_缺陷修复说明_v3.md)，配套 13 张实测截图）：
+
+| # | 原缺陷 | 修复方案 | 验证 |
+|---|---|---|---|
+| 1 | 交卷成绩不落库 | 真实写入 `exam_score` | ✅ 截图 04 |
+| 2 | 判分遍历全题库 | 经关联表**按卷判分** | ✅ 截图 03 |
+| 3 | 主观题答案丢弃 | 明细落 `exam_answer`，可人工阅卷 | ✅ 截图 08–10 |
+| 4 | 登录态刷新丢失 | 登录写 localStorage，刷新不掉线 | ✅ 截图 01 |
+| 5 | 成绩/阅卷页假数据 | 全部对接真实接口 | ✅ 截图 06–07 |
+| 6 | 管理端组卷不可用 | 试卷「配置题目」真实保存 | ✅ 截图 12–13 |
+| 7 | 一键启动 MySQL 失败 | 修正 my.ini 相对路径解析 | ✅ 回归通过 |
+| 8 | 重复交卷可覆盖成绩（刷分风险） | 后端 403 拒绝 + 前端进入拦截 | ✅ TC-04 实测 |
+
+---
+
+## 📂 仓库结构
+
+```text
+school-exam-system/
+├── backend/               # Spring Boot 后端源码
+│   ├── src/main/java/     #   controller / service / entity / mapper
+│   ├── src/main/resources/application.yml
+│   └── pom.xml
+├── frontend/              # Vue3 + Vite 前端源码
+│   ├── src/               #   views / components / router / store / utils
+│   ├── package.json
+│   └── vite.config.ts     # 开发代理（/api → 127.0.0.1:8080）
+├── database/              # init.sql（建表）· seed.sql（演示数据）· upgrade_v2.sql
+├── deploy/                # docker-compose.yml 容器化部署
+├── docs/                  # 测试报告 · 缺陷修复说明 · 实测截图
+│   └── screenshots/       # README 预览图
+└── monitor/               # 交付打包辅助脚本（package_final.py）
+```
+
+> ℹ️ 完整交付包另含 1.5GB 便携运行环境（内置 JDK / Maven / MySQL / Node.js，**解压即用**），本仓库按开源惯例已通过 `.gitignore` 排除 `runtime/`、`backend/target/`、`frontend/node_modules/` 等，仅收录源码与文档。如需便携包可联系作者获取。
+
+---
+
+## 🚀 快速开始（自备环境）
+
+```bash
+# 1. 初始化数据库（MySQL 8，按需改 application.yml 连接信息）
+mysql -uroot -p < database/init.sql
+mysql -uroot -p school_exam < database/seed.sql
+
+# 2. 启动后端（JDK 17+ / Maven，默认 8080 端口）
+cd backend && mvn spring-boot:run
+
+# 3. 启动前端（Node.js 18+）
+cd frontend && npm install && npm run dev
+# 浏览器访问 http://localhost:5173 （admin/123456）
+```
+
+也可一键容器化部署：`docker compose -f deploy/docker-compose.yml up -d`
+
+---
+
+## 📋 完整交付说明（便携绿色版运行指南）
 
 > ## 📌 v3 修复版说明（2026-09-09）
 >
@@ -30,181 +139,50 @@
 > **启动方式**：双击根目录 `启动系统.bat`，浏览器访问 http://localhost:5173
 > （账号 admin/123456、student/123456）。
 
----
+便携版把免安装运行环境（Java / Maven / MySQL / Node.js）放在 `runtime/` 目录，**无需配置任何环境变量**，复制到任意 Windows 电脑即可运行：
 
-## 🎯 一、 系统功能与项目核心信息
-
-这是一套基于 Spring Boot + Vue3 构建的“学校管理系统（企业级在线考试系统）”。本项目经过专门设计，具有**极强的可移植性**。
-
----
-
-## 🎯 一、 系统功能与项目核心信息
-
-本项目面向企业内部员工培训考核，实现**题库管理、在线考试、防作弊、自动/人工阅卷、成绩分析**全流程功能，支持考生/阅卷人/考试管理员/系统管理员 4 角色操作，保障系统高可用、高并发、数据安全。
-
-### 1. 核心技术栈
-- **后端架构**：Spring Boot + Spring Security + MyBatis-Plus + MySQL 8.0 + Redis 6.0+
-- **前端架构**：Vue3 + Element Plus + Pinia + Vue-Router
-- **部署方案**：Linux CentOS + Docker + Nginx（支持便携式本地免安装运行）
-
-### 2. 便携式系统核心机制（纯绿色版说明）
-本系统被设计为“纯便携绿色版”，无论是自己电脑本地测试、局域网分享给同事、还是直接挂载到云服务器，都不需要修改繁琐的代码。只需放置好对应文件并点击“一键启动”（当前已优化为 VS Code 终端启动以方便开发）。
-
-- **前端代理与智能降级**：前端通过 Vite 代理转发给后端的 `127.0.0.1:8080`。当检测到后端服务不可用或数据库离线（如返回 500 错误）时，前端拦截器会自动触发**降级机制**，切换到**纯本地运行模式**（使用本地模拟数据），确保系统在脱机状态下也能继续演示核心流程。
-- **后端环境切换**：后端配置文件位于 `backend/src/main/resources`。系统已内置便携式 MySQL（默认 3307 端口）与初始化数据脚本（`database/seed.sql`），确保能立刻使用真实数据进行操作。
-
----
-
-## � 二、 系统详细功能介绍
-
-该企业级在线考试系统经过深度打磨，功能模块全面且贴合实际业务场景，旨在为企业内部培训、学校教育考核及各类在线测试提供稳定、高效的解决方案。系统主要包含以下核心功能模块：
-
-### 1. 👥 用户与组织架构管理
-- **多级角色与权限控制**：系统内置“系统管理员”、“考试管理员”、“阅卷人”、“考生”四大基础角色，支持动态分配菜单权限与数据权限。
-- **部门与层级管理**：支持树状结构的组织/部门管理，可按部门批量导入考生，或按部门进行考试成绩的数据隔离。
-- **千人千面工作台**：不同角色登录后自动呈现专属数据看板。管理员可查看全站考试概况，考生则直达待考任务与历史成绩。
-
-### 2. 📚 题库与试卷中心
-- **全量题型支持**：覆盖单选题、多选题、判断题、填空题（支持多空与顺序要求）、简答题及综合材料题等全量题型。
-- **多维度题库管理**：支持按学科、知识点、难度（易、中、难）建立多级题库，提供 Excel/Word 模板一键批量导入题目功能，大幅降低录题成本。
-- **智能策略组卷**：
-  - **固定试卷（人工组卷）**：阅卷人手动从题库挑选题目，适合标准化期末考试。
-  - **随机试卷（策略组卷）**：设置各知识点、题型、难度的抽题比例与数量，系统在考试时为每位考生动态生成难度一致但题目不同的试卷，彻底杜绝抄袭。
-
-### 3. ⏱️ 在线考试与智能防作弊监控
-- **多维考试配置**：支持设置考试开放时间窗、独立答题倒计时、迟到限考规则、及格分数线、交卷后是否立即显示成绩等参数。
-- **全链路防作弊机制**：
-  - **屏幕级防护**：切屏次数警告（达上限自动交卷）、禁用复制粘贴、禁用右键菜单、防多标签页双开。
-  - **身份级防护**：IP 异常登录检测与多端登录互踢机制。
-- **极致容灾保护**：前端定时保存答题快照至本地缓存。即使在考试中途遇到网络中断、浏览器崩溃等意外，重新打开页面也能恢复上次的答题进度，不丢一题。
-
-### 4. 📝 智能批阅与多维数据分析
-- **自动化流水线批阅**：客观题（单选、多选、判断）交卷瞬间由系统自动完成批改与赋分。
-- **主观题协同阅卷**：支持将简答题随机或按班级分配给多名阅卷人，支持盲改模式（隐藏考生信息）与流水线批改模式（每人只改一道题），确保评分公正。
-- **全景数据报表与可视化**：
-  - 提供考试大屏与数据图表（及格率走势、各分数段人数分布、高频错题榜单）。
-  - 支持一键导出考生详细答卷记录、成绩单 Excel，便于归档与线下分析。
-  - 提供知识点掌握度分析，帮助讲师针对性调整后续培训或教学内容。
-
----
-
-## �🛠️ 三、 如何启动整个系统？
-
-为了更深入地掌控代码，我们推荐直接使用 **Visual Studio Code (VS Code)** 的终端来逐步启动数据库、后端和前端。
-
-⚠️ **环境依赖说明**：
-- **纯绿色免安装**：本项目在 `runtime` 文件夹中已经内置了全部需要的免安装版运行环境，包括 **Java、Maven、MySQL 和 Node.js**。
-- 您**不需要**在电脑上安装配置任何环境变量或软件，直接解压复制到任何一台电脑上即可按照以下步骤运行！
-
-### 准备工作
-1. 使用 VS Code 打开 `学校管理` 根目录。
-2. 在 VS Code 中点击顶部菜单栏的 `终端(Terminal)` -> `新建终端(New Terminal)`。我们一共需要打开 **4 个终端窗口**（可以通过终端面板右上角的 `+` 号新建）。
-
-### 🟣 第一步：启动 Redis 缓存 (终端 1)
-项目依赖 Redis 缓存服务，首先启动它：
-
-1. 在第 1 个终端中，进入 Redis 目录：
-   ```powershell
-   cd runtime\redis
-   ```
-2. 启动 Redis 服务：
-   ```powershell
-   .\redis-server.exe redis.windows.conf
-   ```
-   > 💡 **提示**: 当看到一个 ASCII 艺术图或 `Ready to accept connections` 时说明启动成功。请保持此终端开启。
-
-### 🟢 第二步：启动 MySQL 数据库 (终端 2)
-项目自带了免安装版的 MySQL，我们直接通过 VS Code 终端启动它：
-
-1. 切换到第 2 个终端，进入数据库**根目录**（注意不是 bin 目录）：
-   ```powershell
-   cd runtime\mysql
-   ```
-2. 启动 MySQL 服务（指定配置文件）：
-   ```powershell
-   .\bin\mysqld.exe --defaults-file="my.ini" --console
-   ```
-   > 💡 **提示**: 当看到 `ready for connections` 提示时，说明数据库已成功启动。请保持此终端开启，不要关闭。  
-   > *(注：首次使用前若提示需要初始化，请先执行 `.\mysqld.exe --initialize-insecure --console`)*
-
-### 🔵 第三步：启动 Spring Boot 后端 (终端 3)
-由于我们内置了 Java 和 Maven，即使你的电脑没装 Java 也能跑后端：
-
-1. 切换到第 3 个终端，进入后端目录：
-   ```powershell
-   cd backend
-   ```
-2. 使用内置的 Maven 和 Java 编译并运行项目：
-   ```powershell
-   # 编译打包 (如果之前没打包过)
-   ..\runtime\maven\bin\mvn.cmd clean package -DskipTests
-
-   # 使用内置的 Java 运行后端
-   ..\runtime\java\bin\java.exe -jar target\exam-system-1.0.0.jar
-   ```
-   > 💡 **提示**: 当看到启动成功提示时，说明后端（8080 端口）已正常运行。
-
-### 🟡 第四步：启动 Vue3 前端 (终端 4)
-前端代码位于 `frontend` 目录。我们使用内置的 Node.js 运行。
-
-1. 切换到第 4 个终端，进入前端目录：
-   ```powershell
-   cd frontend
-   ```
-2. 安装依赖并启动（调用内置的 npm，并设置临时环境变量）：
-   ```powershell
-   # 将内置的 Node.js 临时添加到环境变量
-   $env:Path = "..\runtime\nodejs;" + $env:Path
-
-   # 临时绕过执行策略并运行
-   Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope Process -Force
-   
-   # 安装依赖
-   npm install
-   
-   # 启动项目
-   npm run dev
-   ```
-3. 启动后，按住 `Ctrl` 键点击终端里输出的本地链接（如 `http://localhost:5173`）即可在浏览器中查看页面。
-
----
-
-## � 四、 整理后的项目结构说明
-
-为了保持项目整洁，当前干净的目录结构如下（所有冗余文档和一键启动脚本已清理），方便开发者快速定位代码：
-
-```text
-学校管理/
-├── backend/               # 后端源码 (Spring Boot 架构)
-│   ├── src/               # 后端源码目录
-│   │   └── main/resources/# 配置文件存放区 (如 application.yml)
-│   ├── target/            # Maven 编译与打包输出目录 (含 exam-system-1.0.0.jar)
-│   ├── pom.xml            # Maven 依赖管理配置文件
-│   └── build.log          # 编译日志文件
-├── frontend/              # 前端源码 (Vue3 + Vite 架构)
-│   ├── dist/              # 前端打包后的生产环境静态资源
-│   ├── src/               # 前端核心源码目录
-│   │   ├── components/    # 页面级组件与通用组件 (ExamList, UserList, Dashboard 等)
-│   │   ├── router/        # Vue-Router 路由配置文件 (index.ts)
-│   │   ├── store/         # Pinia 全局状态管理 (index.ts)
-│   │   ├── utils/         # 核心工具类与请求拦截封装 (request.ts)
-│   │   ├── views/         # 主要视图容器 (Home, Login, ExamRoom 等)
-│   │   ├── App.vue        # 前端应用根组件
-│   │   └── main.ts        # 前端应用入口文件
-│   ├── package.json       # NPM 依赖包与运行脚本配置
-│   └── vite.config.ts     # Vite 构建与代理配置文件
-├── database/              # 数据库资源
-│   ├── init.sql           # 数据库建表初始化脚本
-│   └── seed.sql           # 测试数据与管理员账号填充脚本
-├── runtime/               # 免安装纯绿色运行环境
-│   ├── java/              # 内置 JDK 运行环境 (含 java.exe)
-│   ├── maven/             # 内置 Maven 编译环境 (含 mvn.cmd)
-│   ├── mysql/             # 内置 MySQL 数据库服务 (含 mysqld.exe 与本地数据)
-│   └── nodejs/            # 内置 Node.js 环境 (供前端安装依赖与运行)
-├── deploy/                # 自动化部署相关配置
-│   └── docker-compose.yml # 容器化部署编排文件
-└── README.md              # 项目说明文档 (本文档)
+### 1️⃣ 启动 Redis（终端 1）
+```powershell
+cd runtime\redis
+.\redis-server.exe redis.windows.conf
 ```
 
-> 🎉 **祝你编码愉快！**  
-> 如果在运行中遇到端口占用，请在 VS Code 终端中使用 `Ctrl+C` 停止对应的服务后再试。
+### 2️⃣ 启动 MySQL（终端 2）
+```powershell
+cd runtime\mysql
+.\bin\mysqld.exe --defaults-file="my.ini" --console
+```
+> 首次使用若提示需要初始化，先执行 `.\bin\mysqld.exe --initialize-insecure --console`
+
+### 3️⃣ 启动 Spring Boot 后端（终端 3）
+```powershell
+cd backend
+..\runtime\maven\bin\mvn.cmd clean package -DskipTests   # 首次编译
+..\runtime\java\bin\java.exe -jar target\exam-system-1.0.0.jar
+```
+
+### 4️⃣ 启动 Vue3 前端（终端 4）
+```powershell
+cd frontend
+$env:Path = "..\runtime\nodejs;" + $env:Path
+npm install
+npm run dev
+```
+浏览器访问 http://localhost:5173
+
+> 💡 建议用 VS Code 打开项目根目录，开 4 个终端分别执行以上步骤。
+> 若遇端口占用，`Ctrl+C` 停掉对应服务再试。
+
+---
+
+## 📄 文档索引
+
+| 文档 | 说明 |
+|---|---|
+| [测试报告](docs/在线考试系统_测试报告.md) | 软件测试课程交付：13 条用例 + 实测截图 + SQL 证据 |
+| [缺陷修复说明 v3](docs/学校管理系统_缺陷修复说明_v3.md) | 8 项缺陷的根因分析与修复验证 |
+| [实测截图](docs/测试截图/) | 全流程 13 张功能验证截图 |
+
+---
+
+> 🎉 **祝你编码愉快！** 本仓库代码基于 MIT 协议开源，欢迎 Star / Fork / Issue。
