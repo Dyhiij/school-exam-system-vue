@@ -1,0 +1,35 @@
+# ===== 便携运行环境（1.5GB，仅本地解压即用，不入库）=====
+runtime/
+
+# ===== 构建产物 =====
+backend/target/
+frontend/dist/
+*.jar
+build.log
+
+# ===== 依赖 =====
+frontend/node_modules/
+node_modules/
+
+# ===== IDE / 编辑器 =====
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# ===== 日志与系统文件 =====
+*.log
+*.pdb
+*.tmp
+.DS_Store
+Thumbs.db
+
+# ===== 本地一键启动脚本（依赖本机 runtime 路径，不入库）=====
+*.bat
+*.cmd
+
+# ===== 本地环境配置（若有）=====
+*.local
+.env
+.env.*

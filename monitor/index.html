@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏫</text></svg>">
+    <title>学校管理系统 - 启动与监控中心</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <style>
+        :root {
+            --primary: #1890ff;
+            --success: #52c41a;
+            --error: #f5222d;
+            --warning: #faad14;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #333;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            color: var(--text);
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 24px;
+        }
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .btn:hover {
+            opacity: 0.8;
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .card {
+            background: var(--card-bg);
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 18px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            color: white;
+            text-transform: uppercase;
+        }
+        .status-running { background: var(--success); }
+        .status-stopped { background: #999; }
+        .status-starting { background: var(--warning); }
+        .status-error { background: var(--error); }
+        
+        .log-container {
+            height: 250px;
+            overflow-y: auto;
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 13px;
+        }
+        .log-line {
+            margin: 2px 0;
+            word-wrap: break-word;
+        }
+        .log-info { color: #d4d4d4; }
+        .log-error { color: #f48771; font-weight: bold; }
+        .log-time { color: #569cd6; margin-right: 10px; }
+        
+        .metrics {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+        }
+        .metric-item {
+            text-align: center;
+        }
+        .metric-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        .metric-label {
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container">
+        <div class="header">
+            <div>
+                <h1>🏫 学校管理系统 - 启动与实时监控中心 <span v-if="!isConnected" style="color:red; font-size:14px;">(已断开连接)</span></h1>
+                <p style="margin: 5px 0 0 0; color: #666;">系统会自动监控前端、后端、数据库的运行状态。如果出现错误会在此显示。</p>
+            </div>
+            <button class="btn" @click="startSystem" :disabled="isStarting || !isConnected">
+                {{ isStarting ? '系统启动中...' : '一键启动所有服务' }}
+            </button>
+        </div>
+
+        <div class="dashboard">
+            <!-- System Metrics -->
+            <div class="card">
+                <div class="card-header">
+                    💻 运行环境与系统资源
+                </div>
+                <div class="metrics">
+                    <div class="metric-item">
+                        <div class="metric-value">{{ metrics.cpu }}</div>
+                        <div class="metric-label">CPU 占用率</div>
+                    </div>
+                    <div class="metric-item">
+                        <div class="metric-value">{{ metrics.memory }}</div>
+                        <div class="metric-label">内存 占用率</div>
+                    </div>
+                </div>
+                <div style="margin-top: 20px;">
+                    <div class="card-header" style="font-size: 16px;">系统日志</div>
+                    <div class="log-container" ref="systemLogs">
+                        <div v-for="(log, index) in logs.system" :key="index" class="log-line">
+                            <span class="log-time">[{{ log.timestamp }}]</span>
+                            <span :class="'log-' + log.type">{{ log.message }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- MySQL -->
+            <div class="card">
+                <div class="card-header">
+                    🗄️ MySQL 数据库 (3307)
+                    <span :class="'status-badge status-' + status.mysql">{{ status.mysql }}</span>
+                </div>
+                <div class="log-container" ref="mysqlLogs">
+                    <div v-for="(log, index) in logs.mysql" :key="index" class="log-line">
+                        <span class="log-time">[{{ log.timestamp }}]</span>
+                        <span :class="'log-' + log.type">{{ log.message }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Backend -->
+            <div class="card">
+                <div class="card-header">
+                    ⚙️ Spring Boot 后端 (8080)
+                    <span :class="'status-badge status-' + status.backend">{{ status.backend }}</span>
+                </div>
+                <div class="log-container" ref="backendLogs">
+                    <div v-for="(log, index) in logs.backend" :key="index" class="log-line">
+                        <span class="log-time">[{{ log.timestamp }}]</span>
+                        <span :class="'log-' + log.type">{{ log.message }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Frontend -->
+            <div class="card">
+                <div class="card-header">
+                    🌐 Vue3 前端 (5173)
+                    <span :class="'status-badge status-' + status.frontend">{{ status.frontend }}</span>
+                </div>
+                <div class="log-container" ref="frontendLogs">
+                    <div v-for="(log, index) in logs.frontend" :key="index" class="log-line">
+                        <span class="log-time">[{{ log.timestamp }}]</span>
+                        <span :class="'log-' + log.type">{{ log.message }}</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp, ref, reactive, onMounted, nextTick } = Vue;
+
+        createApp({
+            setup() {
+                const isStarting = ref(false);
+                const isConnected = ref(true);
+                const status = reactive({
+                    mysql: 'stopped',
+                    backend: 'stopped',
+                    frontend: 'stopped'
+                });
+                const metrics = reactive({
+                    cpu: '0%',
+                    memory: '0%'
+                });
+                const logs = reactive({
+                    system: [],
+                    mysql: [],
+                    backend: [],
+                    frontend: []
+                });
+
+                const systemLogs = ref(null);
+                const mysqlLogs = ref(null);
+                const backendLogs = ref(null);
+                const frontendLogs = ref(null);
+
+                const scrollToBottom = (el) => {
+                    if (el && el.value) {
+                        el.value.scrollTop = el.value.scrollHeight;
+                    }
+                };
+
+                const startSystem = async () => {
+                    isStarting.value = true;
+                    try {
+                        await fetch('/api/start');
+                    } catch (e) {
+                        console.error('Failed to start system', e);
+                    }
+                };
+
+                onMounted(async () => {
+                    // Fetch initial state
+                    try {
+                        const res = await fetch('/api/state');
+                        const data = await res.json();
+                        Object.assign(status, data.status);
+                        Object.assign(logs, data.logs);
+                    } catch (e) {
+                        console.error('Failed to fetch initial state', e);
+                    }
+
+                    // Setup SSE with auto-reconnect logic handling
+                    let source = null;
+                    let reconnectTimer = null;
+                    
+                    const connectSSE = () => {
+                        if (source) source.close();
+                        source = new EventSource('/api/stream');
+                        
+                        source.onopen = () => {
+                            isConnected.value = true;
+                        };
+                        
+                        source.onmessage = (event) => {
+                            const data = JSON.parse(event.data);
+                            if (data.type === 'status') {
+                                status[data.service] = data.status;
+                            } else if (data.type === 'log') {
+                                logs[data.service].push(data.log);
+                                if (logs[data.service].length > 100) {
+                                    logs[data.service].shift();
+                                }
+                                nextTick(() => {
+                                    if (data.service === 'system') scrollToBottom(systemLogs);
+                                    if (data.service === 'mysql') scrollToBottom(mysqlLogs);
+                                    if (data.service === 'backend') scrollToBottom(backendLogs);
+                                    if (data.service === 'frontend') scrollToBottom(frontendLogs);
+                                });
+                            } else if (data.type === 'system_metrics') {
+                                metrics.cpu = data.cpu;
+                                metrics.memory = data.memory;
+                            }
+                        };
+                        
+                        source.onerror = () => {
+                            isConnected.value = false;
+                            source.close();
+                            clearTimeout(reconnectTimer);
+                            reconnectTimer = setTimeout(connectSSE, 3000);
+                        };
+                    };
+                    
+                    connectSSE();
+                });
+
+                return {
+                    isStarting,
+                    isConnected,
+                    status,
+                    metrics,
+                    logs,
+                    systemLogs,
+                    mysqlLogs,
+                    backendLogs,
+                    frontendLogs,
+                    startSystem
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
